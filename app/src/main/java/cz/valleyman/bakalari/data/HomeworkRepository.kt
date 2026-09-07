@@ -6,6 +6,6 @@ class HomeworkRepository(
     private val client: BakalariClient
 ) {
     suspend fun refreshHomework(): List<Homework> {
-        return client.getHomework()
+        return client.getHomework().filterIsInstance<Homework>()
     }
 }

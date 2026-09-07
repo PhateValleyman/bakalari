@@ -1,13 +1,13 @@
 package cz.valleyman.bakalari.child
 
-import cz.valleyman.bakalari.data.DeviceState
+import cz.valleyman.bakalari.data.DeviceLockState
 
 class LockStateManager {
-    private var state = DeviceState.UNLOCKED
+    private var state = DeviceLockState.UNLOCKED
 
-    fun getState(): DeviceState = state
+    fun getState(): DeviceLockState = state
 
-    fun updateState(newState: DeviceState) {
+    fun updateState(newState: DeviceLockState) {
         state = newState
     }
 }

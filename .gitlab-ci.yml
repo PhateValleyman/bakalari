@@ -1,0 +1,43 @@
+# Build APK of BakalariGuard for Android 14 (API 34), arm64-v8a (aarch64).
+# The build target (API 34, arm64-v8a, JVM 17, dependencies) is configured
+# directly in app/build.gradle; this job only provides the Android SDK.
+
+image: gradle:8.9-jdk17
+
+variables:
+  ANDROID_HOME: "$CI_PROJECT_DIR/.android-sdk"
+  GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle"
+  GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+  SDK_PACKAGES: "platforms;android-34 build-tools;34.0.0 platform-tools"
+  CMDLINE_TOOLS_URL: "https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip"
+
+cache:
+  key: ${CI_PROJECT_ID}
+  paths:
+    - .gradle/caches/
+    - .android-sdk/
+
+stages:
+  - build
+
+build:apk:
+  stage: build
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq --no-install-recommends curl unzip > /dev/null
+    - mkdir -p "$ANDROID_HOME/cmdline-tools"
+    - |
+      if [ ! -d "$ANDROID_HOME/cmdline-tools/latest" ]; then
+        curl -sSL -o /tmp/cmdtools.zip "$CMDLINE_TOOLS_URL"
+        unzip -q /tmp/cmdtools.zip -d "$ANDROID_HOME/cmdline-tools"
+        mv "$ANDROID_HOME/cmdline-tools/cmdline-tools" "$ANDROID_HOME/cmdline-tools/latest"
+      fi
+    - export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
+    - yes | sdkmanager --licenses > /dev/null || true
+    - sdkmanager $SDK_PACKAGES > /dev/null
+  script:
+    - gradle --no-daemon assembleDebug assembleRelease
+  artifacts:
+    name: "bakalari-api34-arm64-$CI_COMMIT_SHORT_SHA"
+    paths:
+      - app/build/outputs/apk/debug/*.apk
+      - app/build/outputs/apk/release/*.apk
