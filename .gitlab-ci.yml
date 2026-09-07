@@ -22,6 +22,8 @@ stages:
 
 build:apk:
   stage: build
+  when: manual
+  allow_failure: false
   before_script:
     - apt-get update -qq && apt-get install -y -qq --no-install-recommends curl unzip > /dev/null
     - mkdir -p "$ANDROID_HOME/cmdline-tools"
