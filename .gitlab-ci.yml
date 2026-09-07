@@ -1,22 +1,6 @@
-# Build APK of BakalariGuard for Android 14 (API 34), arm64-v8a (aarch64) only.
-#
-# The upstream GitHub project (https://github.com/PhateValleyman/bakalari) does
-# not compile as-is, so this job patches the working tree before building
-# (committed sources stay unmodified; the job patches only its working tree):
-#   1. compileSdk/targetSdk 35 -> 34, androidx.core 1.15.0 -> 1.13.1
-#      (1.15.0 needs SDK 35; 1.13.1 is the last version for compileSdk 34)
-#   2. ndk.abiFilters 'arm64-v8a' pins the build to the aarch64 ABI
-#      (the app is pure Kotlin with no native code, so the APK is
-#      architecture-independent and runs on all arm64 devices)
-#   3. JVM target 17 for Java and Kotlin (upstream has an inconsistent
-#      1.8 vs 17 target that fails the build)
-#   4. Missing dependencies the source code needs: Room, WorkManager,
-#      lifecycle-viewmodel-ktx
-#   5. Two compile fixes in upstream code: LockStateManager uses the enum
-#      DeviceLockState (not DeviceState), HomeworkRepository filters the
-#      placeholder List<Any> returned by BakalariClient
-#
-# No Gradle wrapper is committed, so we run Gradle from the Docker image.
+# Build APK of BakalariGuard for Android 14 (API 34), arm64-v8a (aarch64).
+# The build target (API 34, arm64-v8a, JVM 17, dependencies) is configured
+# directly in app/build.gradle; this job only provides the Android SDK.
 
 image: gradle:8.9-jdk17
 
@@ -50,33 +34,6 @@ build:apk:
     - export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
     - yes | sdkmanager --licenses > /dev/null || true
     - sdkmanager $SDK_PACKAGES > /dev/null
-    # --- Patch 1 + 2: API 34 target and arm64-v8a ABI ---
-    - sed -i 's/compileSdk 35/compileSdk 34/; s/targetSdk 35/targetSdk 34/; s/androidx.core:core-ktx:1.15.0/androidx.core:core-ktx:1.13.1/' app/build.gradle
-    - sed -i "/targetSdk 34/a\\        ndk { abiFilters 'arm64-v8a' }" app/build.gradle
-    # --- Patch 3 + 4: JVM 17 target and missing dependencies ---
-    - |
-      cat >> app/build.gradle <<'GRADLE'
-      android {
-          compileOptions {
-              sourceCompatibility JavaVersion.VERSION_17
-              targetCompatibility JavaVersion.VERSION_17
-          }
-      }
-      kotlin {
-          compilerOptions {
-              jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
-          }
-      }
-      dependencies {
-          implementation 'androidx.room:room-runtime:2.6.1'
-          implementation 'androidx.room:room-ktx:2.6.1'
-          implementation 'androidx.work:work-runtime-ktx:2.9.1'
-          implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7'
-      }
-      GRADLE
-    # --- Patch 5: upstream compile fixes ---
-    - sed -i 's/^import cz.valleyman.bakalari.data.DeviceState$/import cz.valleyman.bakalari.data.DeviceLockState/; s/DeviceState/DeviceLockState/g' app/src/main/java/cz/valleyman/bakalari/child/LockStateManager.kt
-    - sed -i 's/return client.getHomework()/return client.getHomework().filterIsInstance<Homework>()/' app/src/main/java/cz/valleyman/bakalari/data/HomeworkRepository.kt
   script:
     - gradle --no-daemon assembleDebug assembleRelease
   artifacts:
