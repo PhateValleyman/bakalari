@@ -2,7 +2,7 @@
 #
 # The upstream GitHub project (https://github.com/PhateValleyman/bakalari) does
 # not compile as-is, so this job patches the working tree before building
-# (master stays a byte-identical mirror of GitHub):
+# (committed sources stay unmodified; the job patches only its working tree):
 #   1. compileSdk/targetSdk 35 -> 34, androidx.core 1.15.0 -> 1.13.1
 #      (1.15.0 needs SDK 35; 1.13.1 is the last version for compileSdk 34)
 #   2. ndk.abiFilters 'arm64-v8a' pins the build to the aarch64 ABI
