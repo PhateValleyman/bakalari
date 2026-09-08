@@ -14,7 +14,7 @@
 - [x] Child mode skeleton
 - [x] Homework data model
 - [x] Device state model
-- [ ] Room database
+- [x] Room database
 - [ ] Preferences storage
 - [ ] Encryption layer
 
