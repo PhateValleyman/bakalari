@@ -7,6 +7,8 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.google.zxing.integration.android.IntentIntegrator
 import cz.valleyman.bakalari.MainActivity
 import cz.valleyman.bakalari.R
@@ -14,6 +16,7 @@ import cz.valleyman.bakalari.data.AppDatabase
 import cz.valleyman.bakalari.security.CommandSigner
 import cz.valleyman.bakalari.security.SecurityManager
 import cz.valleyman.bakalari.security.SignedPayload
+import cz.valleyman.bakalari.ui.HomeworkAdapter
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
@@ -25,6 +28,7 @@ import kotlinx.serialization.json.jsonPrimitive
 class ChildLockActivity : AppCompatActivity() {
     
     private lateinit var securityManager: SecurityManager
+    private lateinit var adapter: HomeworkAdapter
     private val signer = CommandSigner()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -32,6 +36,7 @@ class ChildLockActivity : AppCompatActivity() {
         setContentView(R.layout.activity_child_lock)
 
         securityManager = SecurityManager(this)
+        setupRecyclerView()
 
         val reason = intent.getStringExtra("reason")
         if (reason != null) {
@@ -44,6 +49,39 @@ class ChildLockActivity : AppCompatActivity() {
             integrator.setPrompt("Scan Parent QR Code")
             integrator.setBeepEnabled(true)
             integrator.initiateScan()
+        }
+
+        loadHomework()
+    }
+
+    private fun setupRecyclerView() {
+        val recyclerView = findViewById<RecyclerView>(R.id.recycler_homework)
+        recyclerView.layoutManager = LinearLayoutManager(this)
+        adapter = HomeworkAdapter(emptyList()) { item, isCompleted ->
+            lifecycleScope.launch {
+                val db = AppDatabase.getDatabase(this@ChildLockActivity)
+                db.homeworkDao().insertAll(listOf(item.copy(completed = isCompleted)))
+                checkIfAllCompleted()
+            }
+        }
+        recyclerView.adapter = adapter
+    }
+
+    private fun loadHomework() {
+        lifecycleScope.launch {
+            val db = AppDatabase.getDatabase(applicationContext)
+            val data = db.homeworkDao().getAll()
+            adapter.updateData(data)
+        }
+    }
+
+    private fun checkIfAllCompleted() {
+        lifecycleScope.launch {
+            val db = AppDatabase.getDatabase(applicationContext)
+            val pending = db.homeworkDao().getAll().filter { !it.completed }
+            if (pending.isEmpty()) {
+                unlockDevice()
+            }
         }
     }
 
