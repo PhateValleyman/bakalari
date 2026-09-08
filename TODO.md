@@ -30,7 +30,7 @@
 ## Child mode
 
 - [x] Lock screen UI (basic)
-- [ ] Startup state verification
+- [x] Startup state verification
 - [x] WorkManager synchronization
 - [ ] Device Owner support
 - [ ] Custom launcher mode
