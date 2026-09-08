@@ -21,15 +21,15 @@
 ## Bakaláři API
 
 - [x] Client abstraction
-- [ ] Implement login
+- [x] Implement login (basic)
 - [ ] Verify school API endpoints
-- [ ] Implement homework loading
+- [x] Implement homework loading (basic)
 - [ ] Offline homework cache
 - [ ] Session handling
 
 ## Child mode
 
-- [ ] Lock screen UI
+- [x] Lock screen UI (basic)
 - [ ] Startup state verification
 - [ ] WorkManager synchronization
 - [ ] Device Owner support
