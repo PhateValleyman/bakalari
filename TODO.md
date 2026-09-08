@@ -50,7 +50,7 @@
 - [ ] Offline command queue
 - [ ] LAN synchronization
 - [ ] Encrypted communication
-- [ ] Signed commands
+- [x] Signed commands (QR Offline)
 
 ## Future extensions
 
