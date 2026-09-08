@@ -31,7 +31,7 @@
 
 - [x] Lock screen UI (basic)
 - [ ] Startup state verification
-- [ ] WorkManager synchronization
+- [x] WorkManager synchronization
 - [ ] Device Owner support
 - [ ] Custom launcher mode
 - [ ] Boot receiver
