@@ -1,5 +1,8 @@
 package cz.valleyman.bakalari.data
 
+import androidx.room.Entity
+import androidx.room.PrimaryKey
+
 /**
  * Synchronised state between parent and child devices.
  */
@@ -10,8 +13,9 @@ enum class DeviceLockState {
     APPROVED
 }
 
+@Entity(tableName = "device_state")
 data class DeviceState(
-    val deviceId: String,
+    @PrimaryKey val deviceId: String,
     val lockState: DeviceLockState,
     val lastSync: Long
 )
