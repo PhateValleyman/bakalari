@@ -13,17 +13,17 @@ class HomeworkRepository(
     suspend fun refreshHomework(): List<HomeworkEntity> {
         val remoteHomework = client.getHomework()
         val entities = remoteHomework.map { 
-            // In a real app, we'd have a proper mapper here.
-            // For now, assuming BakalariClient returns something that can be mapped.
             HomeworkEntity(
-                id = it.hashCode().toString(), // Stub mapping
-                subject = "Subject",
-                text = it.toString(),
-                dueDate = null,
+                id = it.ID,
+                subject = it.Subject,
+                text = it.Content,
+                dueDate = it.DueDate,
                 completed = false
             )
         }
-        homeworkDao.insertAll(entities)
+        if (entities.isNotEmpty()) {
+            homeworkDao.insertAll(entities)
+        }
         return entities
     }
 }
