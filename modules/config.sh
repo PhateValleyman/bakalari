@@ -14,10 +14,6 @@ SCOPE=""
 FIELDS=(host user pass max_hours name class color_Hv color_M color_Čj color_Prv color_Vv color_Pč color_Tv)
 LABELS=("Host" "Uživatel" "Heslo" "Hodin rozvrhu" "Jméno" "Třída"
     "Barva Hv" "Barva M" "Barva Čj" "Barva Prv" "Barva Vv" "Barva Pč" "Barva Tv")
-COLOR_VALUES=(0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15)
-COLOR_NAMES=("Černá" "Červená" "Zelená" "Žlutá" "Modrá" "Fialová" "Azurová" "Bílá"
-    "Šedá" "Světle červená" "Světle zelená" "Světle žlutá" "Světle modrá"
-    "Světle fialová" "Světle azurová" "Jasně bílá")
 
 usage() {
     usage_module_header "Modul: config"
@@ -215,7 +211,7 @@ edit_global() {
                     selected="$i"
                     field="${global_fields[i]}"
                     if [[ "$field" == color_* ]]; then
-                        new_value="$(select_color_value "${global_values[$field]:-}" global_fields global_labels global_values "$i")"
+                        new_value="$(select_color_value "${global_values[$field]:-}" "$i")"
                     else
                         new_value="$(input_value "${global_labels[i]}" "${global_values[$field]:-}")"
                     fi
@@ -247,7 +243,7 @@ edit_global() {
                 selected="$i"
                 field="${global_fields[i]}"
                 if [[ "$field" == color_* ]]; then
-                    new_value="$(select_color_value "${global_values[$field]:-}" global_fields global_labels global_values "$i")"
+                    new_value="$(select_color_value "${global_values[$field]:-}" "$i")"
                 else
                     new_value="$(input_value "${global_labels[i]}" "${global_values[$field]:-}")"
                 fi

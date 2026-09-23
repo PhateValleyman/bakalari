@@ -132,9 +132,13 @@ config_value() {
         insec && $1 ~ "^[[:space:]]*" key "[[:space:]]*$" {
             value=$0
             sub(/^[^=]*=[[:space:]]*/, "", value)
-            gsub(/^[[:space:]]*#[^"]*$/, "", value) # remove trailing comments outside quotes
             gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
-            gsub(/^"|"$/, "", value)
+            if (value ~ /^"/) {
+                sub(/^"/, "", value)
+                sub(/"[[:space:]]*(#.*)?$/, "", value)
+            } else {
+                sub(/[[:space:]]+#.*$/, "", value)
+            }
             print value
             exit
         }
@@ -145,6 +149,10 @@ config_value() {
 resolve_user() {
     local requested="${1:-}" key value
     if [[ -n "$requested" ]]; then
+        [[ "$requested" =~ ^[A-Za-z0-9._-]+$ ]] || {
+            log_error "Neplatný název profilu: $requested"
+            return "$EXIT_CONFIG"
+        }
         BAKALARI_USER="$requested"
     else
         BAKALARI_USER="$(
@@ -174,9 +182,9 @@ resolve_user() {
     BAKALARI_NAME="$(config_value "$BAKALARI_USER" name)"
     BAKALARI_CLASS="$(config_value "$BAKALARI_USER" class)"
     BAKALARI_MAX_HOURS="$(config_value "$BAKALARI_USER" max_hours)"
-    [[ -n "$BAKALARI_HOST" ]] || { log_error "V konfiguraci chybí "host" v [$BAKALARI_USER]."; return "$EXIT_CONFIG"; }
-    [[ -n "$BAKALARI_LOGIN" ]] || { log_error "V konfiguraci chybí "user" v [$BAKALARI_USER]."; return "$EXIT_CONFIG"; }
-    [[ -n "$BAKALARI_PASS" ]] || { log_error "V konfiguraci chybí "pass" v [$BAKALARI_USER]."; return "$EXIT_CONFIG"; }
+    [[ -n "$BAKALARI_HOST" ]] || { log_error "V konfiguraci chybí \"host\" v [$BAKALARI_USER]."; return "$EXIT_CONFIG"; }
+    [[ -n "$BAKALARI_LOGIN" ]] || { log_error "V konfiguraci chybí \"user\" v [$BAKALARI_USER]."; return "$EXIT_CONFIG"; }
+    [[ -n "$BAKALARI_PASS" ]] || { log_error "V konfiguraci chybí \"pass\" v [$BAKALARI_USER]."; return "$EXIT_CONFIG"; }
     return 0
 }
 
@@ -197,7 +205,8 @@ list_users() {
 save_token() {
     local section="$1" token="$2" tmp
     local rsection="${section//./\\.}"
-    tmp="$(mktemp)" || return 1
+    [[ "$section" =~ ^[A-Za-z0-9._-]+$ && "$token" =~ ^[A-Za-z0-9._~-]+$ ]] || return 1
+    tmp="$(mktemp "${BAKALARI_CONFIG}.tmp.XXXXXX")" || return 1
     awk -v section="$rsection" -v token="$token" '
         $0 ~ "^\\[" section "\\][[:space:]]*$" {
             insec=1
@@ -220,7 +229,9 @@ save_token() {
             if (!found) exit 2
         }
     ' "$BAKALARI_CONFIG" > "$tmp" || { rm -f "$tmp"; return 1; }
-    mv "$tmp" "$BAKALARI_CONFIG"
+    chmod 600 "$tmp" 2>/dev/null || true
+    mv -f "$tmp" "$BAKALARI_CONFIG"
+    chmod 600 "$BAKALARI_CONFIG" 2>/dev/null || true
 }
 
 # Load a timetable subject color from [colors], returning the default when absent.
@@ -237,7 +248,7 @@ subject_color() {
 # Return the configured timetable color as an associative array entry.
 load_subject_colors() {
     declare -gA SUBJECT_COLORS=()
-    local subjects subjects_raw
+    local subjects_raw
     subjects_raw="$(
         awk '
             /^\[colors\]/ { insec=1; next }

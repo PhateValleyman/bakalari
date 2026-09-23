@@ -1,0 +1,95 @@
+.TH BAKALARI-CLI 1 "2026-09-23" "bakalari-cli 0.6.0" "User Commands"
+.SH NAME
+bakalari-cli \- konzolový klient pro Bakaláře
+.SH SYNOPSIS
+.B bakalari-cli
+.RI [ modul ]
+.RI [ volby ]
+.SH DESCRIPTION
+.B bakalari-cli
+zobrazuje údaje ze školního systému Bakaláři. Podporuje více profilů, lokální cache a offline zobrazení naposledy platných dat.
+.SH MODULES
+.TP
+.B absence
+Přehled absence.
+.TP
+.B cache
+Výpis cesty, seznam nebo vymazání lokální cache.
+.TP
+.B config
+Interaktivní úprava globální konfigurace nebo profilu.
+.TP
+.B info
+Souhrn profilu, absence a průměrů.
+.TP
+.B login
+Vytvoření nebo aktualizace profilu a ověření přihlašovacích údajů.
+.TP
+.B rozvrh
+Zobrazení aktuálního rozvrhu.
+.TP
+.B ukoly
+Zobrazení nesplněných domácích úkolů.
+.TP
+.B znamky
+Zobrazení známek a upozornění na nové známky.
+.SH OPTIONS
+.TP
+.BR -h , \ --help
+Zobrazí nápovědu.
+.TP
+.B --version
+Zobrazí verzi klienta.
+.TP
+.BI --user\ PROFILE
+Použije konkrétní profil místo prvního profilu z oddílu [general].
+.SH FILES
+.TP
+.I ~/.config/bakalari-cli/config.toml
+Výchozí konfigurace.
+.TP
+.I ~/.bakalariclirc
+Kompatibilní legacy konfigurace, která má přednost před výchozí cestou.
+.TP
+.I ${XDG_CACHE_HOME:-~/.cache}/bakalari-cli
+Výchozí lokální cache.
+.SH ENVIRONMENT
+.TP
+.B BAKALARI_CONFIG
+Přepíše cestu ke konfiguraci.
+.TP
+.B BAKALARI_CACHE_DIR
+Přepíše cestu k lokální cache.
+.TP
+.B BAKALARI_BASE_URL
+Přepíše základní URL školy/API.
+.TP
+.B XDG_CACHE_HOME
+Určuje základ výchozí cesty cache.
+.SH EXIT STATUS
+.TP
+.B 0
+Úspěch.
+.TP
+.B 2
+Chyba volby nebo konfigurace.
+.TP
+.B 3
+Chyba sítě/API nebo nedostupná cache.
+.TP
+.B 4
+Neplatná odpověď API nebo data.
+.SH SECURITY
+Konfigurace obsahuje heslo a obnovovací token. Soubor je při zápisu nastavován na oprávnění 0600. Skutečnou konfiguraci ani cache necommitujte do repozitáře.
+.SH EXAMPLES
+.nf
+bakalari-cli
+bakalari-cli rozvrh --user dzonny
+bakalari-cli cache --clear
+.fi
+.SH SEE ALSO
+.BR curl (1),
+.BR jq (1),
+.BR bash (1)
+.SH AUTHOR
+PhateValleyman

@@ -1,0 +1,13 @@
+# Local credentials and user configuration
+config.toml
+config.local.toml
+.bakalariclirc
+
+# Runtime cache and temporary editor files
+.cache/
+*.tmp.*
+
+# Test and editor artifacts
+.coverage
+.DS_Store
+
