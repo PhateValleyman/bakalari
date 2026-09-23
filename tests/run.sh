@@ -3,3 +3,4 @@
 set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 "$SCRIPT_DIR/test_common.sh"
+"$SCRIPT_DIR/test_color_picker.sh"

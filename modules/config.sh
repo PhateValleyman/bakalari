@@ -25,6 +25,7 @@ usage() {
     usage_option "--global" "Upravit globální nastavení"
     usage_option "--help" "Zobrazit tuto nápovědu"
     printf '\nEditor zobrazuje vlevo položky a vpravo jejich hodnoty. Gum je volitelný.\n'
+    printf 'Výběr barev: šipky nebo H/J/K/L, Enter potvrdit, Esc nebo Q zrušit.\n'
 }
 
 while [[ $# -gt 0 ]]; do
@@ -55,60 +56,91 @@ input_value() {
         fi
     else
         printf '%-18s [%s]: ' "$label" "$([[ "$secret" == 1 ]] && printf 'skryté' || printf '%s' "$value")" >&2
-        if (( secret )); then read -r -s answer; printf '\n' >&2; else read -r answer; fi
+        if (( secret )); then
+            read -r -s answer || return 1
+            printf '\n' >&2
+        else
+            read -r answer || return 1
+        fi
         printf '%s' "${answer:-$value}"
     fi
 }
 
 color_preview() {
-    local color="${1:-}" label
-    [[ "$color" =~ ^[0-9]+$ ]] || { printf '%-8s' "-"; return; }
-    label="        "
-    printf '\033[48;5;%sm\033[38;5;255m%s\033[0m' "$color" "$label"
+    local color="${1:-}"
+    [[ "$color" =~ ^[0-9]+$ ]] && (( color <= 255 )) || { printf '%-8s' "-"; return; }
+    printf '\033[48;5;%sm\033[38;5;255m  %3d  \033[0m' "$color" "$color"
 }
 
 color_text() {
-    case "$1" in
-        3|7|10|11|12|13|14|15) printf '\033[30m' ;;
-        *) printf '\033[97m' ;;
-    esac
+    local color="$1" red green blue luminance
+    if (( color < 16 )); then
+        case "$color" in
+            3|7|10|11|12|13|14|15) printf '\033[30m' ;;
+            *) printf '\033[97m' ;;
+        esac
+        return
+    fi
+    if (( color < 232 )); then
+        local cube=$((color - 16))
+        local -a levels=(0 95 135 175 215 255)
+        red="${levels[$((cube / 36))]}"
+        green="${levels[$(((cube % 36) / 6))]}"
+        blue="${levels[$((cube % 6))]}"
+    else
+        red=$((8 + (color - 232) * 10))
+        green="$red"
+        blue="$red"
+    fi
+    luminance=$(( (red * 2126 + green * 7152 + blue * 722) / 10000 ))
+    (( luminance >= 150 )) && printf '\033[30m' || printf '\033[97m'
 }
 
 color_swatch() {
-    local color="$1" name="$2" marker="${3:-}"
-    printf '%s\033[48;5;%sm%s %-20s \033[0m' "$marker" "$color" \
-        "$(color_text "$color")" "$name"
+    local color="$1" marker="${2:- }" text_color
+    text_color="$(color_text "$color")"
+    printf '%s\033[48;5;%sm%s%3d\033[0m' "$marker" "$color" "$text_color" "$color"
 }
 
 render_color_picker() {
     local current="$1" index="$2"
-    local i row col marker value
+    local i row col marker
 
     printf '\033[2J\033[H'
-    printf '%s%s%s\n' "$C_BOLD" "Výběr barvy předmětu" "$C_RESET"
-    printf '%sAktuální: %s%b  (↑/↓/←/→, Enter, Esc)%s\n\n' \
-        "$C_GRAY" "$current" "$(color_preview "$current")" "$C_RESET"
+    printf '%s%s%s\n' "$C_BOLD" "Výběr barvy předmětu" "$C_RESET" >&2
+    printf '%sAktuální: %s%b  Nová: %s%b%s\n' \
+        "$C_GRAY" "$current" "$(color_preview "$current")" "$index" \
+        "$(color_preview "$index")" "$C_RESET" >&2
+    printf '%sŠipky/HJKL pohyb   Enter potvrdit   Esc/q zrušit%s\n\n' \
+        "$C_GRAY" "$C_RESET" >&2
 
     for ((row=0; row<16; row++)); do
         for ((col=0; col<16; col++)); do
             i=$((row * 16 + col))
             marker=' '
             (( i == index )) && marker='>'
-            value="$i"
-            printf '%s%3d%b  ' "$marker" "$value" "$(color_text "$value")"
+            color_swatch "$i" "$marker"
+            printf ' '
         done
         printf '\n'
     done
-
-    printf '\n%sEnter%s potvrdit   %sEsc%s zrušit\n' "$C_GRAY" "$C_RESET" "$C_GRAY" "$C_RESET"
+    printf '\n' >&2
 }
 select_color_value() {
     local current="$1"
     local index=0 key old_stty
 
     if ! [[ -t 0 && -t 2 ]]; then
-        input_value "Barva (0-255)" "$current"
-        return
+        while :; do
+            if ! index="$(input_value "Barva (0-255)" "$current")"; then
+                return 1
+            fi
+            if [[ "$index" =~ ^[0-9]+$ ]] && (( index <= 255 )); then
+                printf '%s' "$index"
+                return 0
+            fi
+            log_warn "Barva musí být celé číslo v rozsahu 0-255."
+        done
     fi
 
     if [[ "$current" =~ ^[0-9]+$ ]] && (( current >= 0 && current <= 255 )); then
@@ -116,7 +148,12 @@ select_color_value() {
     fi
 
     old_stty="$(stty -g)" || return 1
-    stty -echo -icanon min 1 time 0 || return 1
+    restore_color_terminal() {
+        stty "$old_stty" 2>/dev/null || true
+    }
+    trap restore_color_terminal EXIT
+    trap 'restore_color_terminal; exit 130' HUP INT TERM
+    stty -echo -icanon min 1 time 1 || return 1
 
     while :; do
         render_color_picker "$current" "$index" >&2
@@ -129,10 +166,23 @@ select_color_value() {
                 '[B') (( index < 240 )) && ((index += 16)) ;;
                 '[C') (( index % 16 < 15 )) && ((index++)) ;;
                 '[D') (( index % 16 > 0 )) && ((index--)) ;;
-                '') stty "$old_stty"; return 1 ;;
+                '') restore_color_terminal; trap - EXIT HUP INT TERM; return 1 ;;
             esac
+        elif [[ "$key" == h ]]; then
+            (( index % 16 > 0 )) && ((index--))
+        elif [[ "$key" == l ]]; then
+            (( index % 16 < 15 )) && ((index++))
+        elif [[ "$key" == k ]]; then
+            (( index >= 16 )) && ((index -= 16))
+        elif [[ "$key" == j ]]; then
+            (( index < 240 )) && ((index += 16))
+        elif [[ "$key" == q || "$key" == Q ]]; then
+            restore_color_terminal
+            trap - EXIT HUP INT TERM
+            return 1
         elif [[ "$key" == $'\n' || "$key" == $'\r' ]]; then
-            stty "$old_stty"
+            restore_color_terminal
+            trap - EXIT HUP INT TERM
             printf '%s' "$index"
             return 0
         fi
