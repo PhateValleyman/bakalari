@@ -25,7 +25,7 @@ usage() {
     usage_option "--global" "Upravit globální nastavení"
     usage_option "--help" "Zobrazit tuto nápovědu"
     printf '\nEditor zobrazuje vlevo položky a vpravo jejich hodnoty. Gum je volitelný.\n'
-    printf 'Výběr barev: šipky nebo H/J/K/L, Enter potvrdit, Esc nebo Q zrušit.\n'
+    printf 'Globální editor: vlevo položky, vpravo paleta barev; ↑/↓ výběr, Enter otevřít/potvrdit, Q uložit.\n'
 }
 
 while [[ $# -gt 0 ]]; do
@@ -157,10 +157,10 @@ select_color_value() {
 
     while :; do
         render_color_picker "$current" "$index" >&2
-        IFS= read -r -s -n1 key
+        IFS= read -r -s -N 1 key
 
         if [[ "$key" == $'\e' ]]; then
-            IFS= read -r -s -n2 key
+            IFS= read -r -s -N 2 key
             case "$key" in
                 '[A') (( index >= 16 )) && ((index -= 16)) ;;
                 '[B') (( index < 240 )) && ((index += 16)) ;;
@@ -239,70 +239,115 @@ edit_global() {
         )")"
     done
 
-    while :; do
-        if command -v gum >/dev/null 2>&1; then
-            menu_items=("← Zpět")
-            for i in "${!global_labels[@]}"; do
-                field="${global_fields[i]}"
-                value="${global_values[$field]:-}"
-                [[ -z "$value" ]] && value="-"
+    if ! [[ -t 0 && -t 2 ]]; then
+        log_error "Globální editor vyžaduje interaktivní terminál."
+        return "$EXIT_CONFIG"
+    fi
+
+    local palette_open=0 palette_index=0 key old_stty
+    old_stty="$(stty -g)" || return 1
+    restore_global_terminal() { stty "$old_stty" 2>/dev/null || true; }
+    trap restore_global_terminal EXIT
+    trap 'restore_global_terminal; exit 130' HUP INT TERM
+    stty -echo -icanon min 1 time 1 || return 1
+
+    render_global_editor() {
+        local row col i field value marker left
+        printf '\033[2J\033[H' >&2
+        printf '%s%s%s\n' "$C_BOLD" "Globální nastavení" "$C_RESET" >&2
+        printf '%s↑/↓ vyber položku   Enter upraví/otevře barvy   q uloží a skončí%s\n\n' \
+            "$C_GRAY" "$C_RESET" >&2
+        for ((row = 0; row < 16; row++)); do
+            left=""
+            if (( row < ${#global_fields[@]} )); then
+                field="${global_fields[row]}"
+                value="${global_values[$field]:--}"
+                marker=' '
+                (( row == selected )) && marker='>'
                 if [[ "$field" == color_* ]]; then
-                    menu_items+=("$(printf '%-20s  %s  %b' "${global_labels[i]}" "$value" "$(color_preview "$value")")")
+                    left="$(printf '%s %-18s | %3s' "$marker" "${global_labels[row]}" "$value")"
                 else
-                    menu_items+=("$(printf '%-20s  %s' "${global_labels[i]}" "$value")")
+                    left="$(printf '%s %-18s | %s' "$marker" "${global_labels[row]}" "$value")"
                 fi
-            done
-            menu_items+=("Uložit a skončit")
-            choice="$(printf '%s\n' "${menu_items[@]}" | gum choose --header 'Upravit položku')"
-            [[ "$choice" == "Uložit a skončit" ]] && break
-            [[ "$choice" == "← Zpět" ]] && return 0
-            for i in "${!global_labels[@]}"; do
-                if [[ "$choice" == "${global_labels[i]}"* ]]; then
-                    selected="$i"
-                    field="${global_fields[i]}"
-                    if [[ "$field" == color_* ]]; then
-                        new_value="$(select_color_value "${global_values[$field]:-}" "$i")"
-                    else
-                        new_value="$(input_value "${global_labels[i]}" "${global_values[$field]:-}")"
-                    fi
-                    global_values[$field]="$new_value"
-                fi
-            done
-        else
-            printf '\n%s%-24s %s %s%s\n' "$C_BOLD" "Upravit položku" "Hodnoty" "Barva" "$C_RESET"
-            printf '%s\n' '------------------------------------------------------------------------'
-            for i in "${!global_fields[@]}"; do
-                field="${global_fields[i]}"
-                value="${global_values[$field]:-}"
-                [[ -z "$value" ]] && value="-"
-                marker=" "
-                (( i == selected )) && marker=">"
-                if [[ "$field" == color_* ]]; then
-                    printf '%s %-20s %2s %-18s %s %b\n' "$marker" "${global_labels[i]}" "$((i + 1))" "${global_labels[i]}" "$value" "$(color_preview "$value")"
-                else
-                    printf '%s %-20s %2s %-18s %s\n' "$marker" "${global_labels[i]}" "$((i + 1))" "${global_labels[i]}" "$value"
-                fi
-            done
-            printf '\n%s q%s  Uložit a skončit\n' "$C_GRAY" "$C_RESET"
-            printf 'Položka: ' >&2
-            read -r choice
-            [[ "$choice" == q || "$choice" == Q ]] && break
-            [[ "$choice" == b || "$choice" == B ]] && return 0
-            if [[ "$choice" =~ ^[0-9]+$ ]] && (( choice >= 1 && choice <= ${#global_fields[@]} )); then
-                i=$((choice - 1))
-                selected="$i"
-                field="${global_fields[i]}"
-                if [[ "$field" == color_* ]]; then
-                    new_value="$(select_color_value "${global_values[$field]:-}" "$i")"
-                else
-                    new_value="$(input_value "${global_labels[i]}" "${global_values[$field]:-}")"
-                fi
-                global_values[$field]="$new_value"
             else
-                log_warn "Zadej číslo 1-${#global_fields[@]} nebo q."
+                left="$(printf '%-25s' '')"
+            fi
+            printf '%-30s' "$left" >&2
+            if (( palette_open )); then
+                for ((col = 0; col < 16; col++)); do
+                    i=$((row * 16 + col))
+                    marker=' '
+                    (( i == palette_index )) && marker='>'
+                    color_swatch "$i" "$marker"
+                    printf ' '
+                done >&2
+            fi
+            printf '\n' >&2
+        done
+        if (( palette_open )); then
+            printf '\n%sPaleta: šipky/HJKL pohyb, Enter potvrdit, Esc zrušit%s\n' \
+                "$C_GRAY" "$C_RESET" >&2
+        else
+            printf '\n%sBarvu otevři klávesou Enter; textové položky lze také upravit Enterem.%s\n' \
+                "$C_GRAY" "$C_RESET" >&2
+        fi
+    }
+
+    while :; do
+        render_global_editor
+        IFS= read -r -s -N 1 key
+        if [[ "$key" == $'\e' ]]; then
+            IFS= read -r -s -N 2 key
+            case "$key" in
+                '[A')
+                    if (( palette_open && palette_index >= 16 )); then ((palette_index -= 16));
+                    elif (( ! palette_open && selected > 0 )); then ((selected--)); fi ;;
+                '[B')
+                    if (( palette_open && palette_index < 240 )); then ((palette_index += 16));
+                    elif (( ! palette_open && selected < ${#global_fields[@]} - 1 )); then ((selected++)); fi ;;
+                '[C') (( palette_open && palette_index % 16 < 15 )) && ((palette_index++)) ;;
+                '[D') (( palette_open && palette_index % 16 > 0 )) && ((palette_index--)) ;;
+                '')
+                    if (( palette_open )); then palette_open=0; else restore_global_terminal; trap - EXIT HUP INT TERM; return 0; fi ;;
+            esac
+        elif [[ "$key" == k || "$key" == K ]]; then
+            if (( palette_open && palette_index >= 16 )); then ((palette_index -= 16));
+            elif (( ! palette_open && selected > 0 )); then ((selected--)); fi
+        elif [[ "$key" == j || "$key" == J ]]; then
+            if (( palette_open && palette_index < 240 )); then ((palette_index += 16));
+            elif (( ! palette_open && selected < ${#global_fields[@]} - 1 )); then ((selected++)); fi
+        elif [[ "$key" == h || "$key" == H ]]; then
+            (( palette_open && palette_index % 16 > 0 )) && ((palette_index--))
+        elif [[ "$key" == l || "$key" == L ]]; then
+            (( palette_open && palette_index % 16 < 15 )) && ((palette_index++))
+        elif [[ "$key" == q || "$key" == Q ]]; then
+            if (( palette_open )); then palette_open=0
+            else break
+            fi
+        elif [[ "$key" == $'\n' || "$key" == $'\r' ]]; then
+            field="${global_fields[selected]}"
+            if [[ "$field" == color_* ]]; then
+                if (( palette_open )); then
+                    global_values[$field]="$palette_index"
+                    palette_open=0
+                else
+                    palette_index="${global_values[$field]:-0}"
+                    palette_open=1
+                fi
+            else
+                restore_global_terminal
+                trap - EXIT HUP INT TERM
+                new_value="$(input_value "${global_labels[selected]}" "${global_values[$field]:-}")" || return 1
+                global_values[$field]="$new_value"
+                old_stty="$(stty -g)" || return 1
+                trap restore_global_terminal EXIT
+                trap 'restore_global_terminal; exit 130' HUP INT TERM
+                stty -echo -icanon min 1 time 1 || return 1
             fi
         fi
     done
+    restore_global_terminal
+    trap - EXIT HUP INT TERM
 
     if [[ -n "${global_values[cache_dir]}" ]]; then
         update_config_key general cache_dir "${global_values[cache_dir]}"

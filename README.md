@@ -43,7 +43,7 @@ Alternativně lze profil vytvořit přihlášením:
 bakalari-cli login --user dzonny
 ```
 
-Editor `bakalari-cli config --global` zobrazuje barvy předmětů jako vizuální paletu ANSI 256 barev. V terminálu lze použít šipky nebo `H/J/K/L`, klávesou `Enter` se barva potvrdí a `Esc` nebo `Q` výběr zruší. Při použití bez interaktivního terminálu editor odmítne hodnoty mimo rozsah `0–255`.
+Editor `bakalari-cli config --global` používá dvousloupcové rozhraní. Levý sloupec zůstává viditelný se seznamem položek a šipkami `↑/↓` se vybírá aktivní řádek. Po stisku `Enter` na položce barvy se v pravém sloupci rozvine vizuální paleta ANSI 256 barev; šipkami nebo `H/J/K/L` se vybere odstín a dalším `Enter` se potvrdí. `Esc` paletu zavře bez změny a `Q` uloží nastavení a skončí. Při použití bez interaktivního terminálu editor odmítne hodnoty mimo rozsah `0–255`.
 
 Priorita konfiguračního souboru je:
 
