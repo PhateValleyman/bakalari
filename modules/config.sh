@@ -260,27 +260,29 @@ edit_global() {
         for ((row = 0; row < 16; row++)); do
             left=""
             if (( row < ${#global_fields[@]} )); then
-                field="${global_fields[row]}"
-                value="${global_values[$field]:--}"
                 marker=' '
                 (( row == selected )) && marker='>'
-                if [[ "$field" == color_* ]]; then
-                    left="$(printf '%s %-18s | %3s' "$marker" "${global_labels[row]}" "$value")"
-                else
-                    left="$(printf '%s %-18s | %s' "$marker" "${global_labels[row]}" "$value")"
-                fi
+                left="$(printf '%s %-20s' "$marker" "${global_labels[row]}")"
             else
-                left="$(printf '%-25s' '')"
+                left=""
             fi
-            printf '%-30s' "$left" >&2
+            printf '%-25s | ' "$left" >&2
             if (( palette_open )); then
                 for ((col = 0; col < 16; col++)); do
                     i=$((row * 16 + col))
                     marker=' '
                     (( i == palette_index )) && marker='>'
-                    color_swatch "$i" "$marker"
-                    printf ' '
+                    color_swatch "$i" "$marker" >&2
+                    printf ' ' >&2
                 done >&2
+            elif (( row < ${#global_fields[@]} )); then
+                field="${global_fields[row]}"
+                value="${global_values[$field]:--}"
+                if [[ "$field" == color_* ]]; then
+                    color_swatch "$value" ' ' >&2
+                else
+                    printf '%s' "$value" >&2
+                fi
             fi
             printf '\n' >&2
         done
