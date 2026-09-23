@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+# bakalari-cli – command dispatcher for the Bakaláři CLI.
+set -o pipefail
+set -u
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+# shellcheck source=lib/common.sh
+source "$SCRIPT_DIR/lib/common.sh"
+
+usage() {
+    usage_header
+    printf '\n'
+    usage_section "Použití:"
+    printf '  %sbakalari-cli%s <modul> [volby]\n' "$C_BOLD" "$C_RESET"
+    printf '\n'
+    usage_section "Moduly:"
+    usage_item "absence" "Přehled absence"
+    usage_item "cache" "Správa lokální cache"
+    usage_item "config" "Interaktivní konfigurace"
+    usage_item "info" "Informace o uživateli"
+    usage_item "login" "Přihlášení / konfigurace"
+    usage_item "rozvrh" "Aktuální rozvrh"
+    usage_item "ukoly" "Domácí úkoly"
+    usage_item "znamky" "Známky"
+    printf '\n'
+    usage_section "Volby:"
+    usage_option "--help" "Zobrazit nápovědu"
+    usage_option "--version" "Zobrazit verzi"
+    printf '\n'
+    usage_section "Příklad:"
+    printf '  %s$ bakalari-cli info%s\n' "$C_GRAY" "$C_RESET"
+    printf '  %s$ bakalari-cli absence --user Dzonny%s\n' "$C_GRAY" "$C_RESET"
+    printf '\n'
+    usage_section "Nápověda modulu:"
+    printf '  %s$ bakalari-cli <modul> --help%s\n' "$C_GRAY" "$C_RESET"
+}
+
+version() {
+    printf '%s\n' "bakalari-cli 0.5.0"
+}
+
+show_home() {
+    usage
+    printf '\n'
+    if [[ -f "$SCRIPT_DIR/lib/common.sh" ]]; then
+        if require_config >/dev/null 2>&1 && resolve_user "" >/dev/null 2>&1; then
+            printf 'Aktuální uživatel:\n'
+            printf '  Profil: %s\n' "$BAKALARI_USER"
+            [[ -n "${BAKALARI_NAME:-}" ]] && printf '  Jméno: %s\n' "$BAKALARI_NAME"
+            [[ -n "${BAKALARI_CLASS:-}" ]] && printf '  Třída: %s\n' "$BAKALARI_CLASS"
+        else
+            printf 'Aktuální uživatel: není nakonfigurován\n'
+        fi
+    fi
+}
+
+if [[ $# -eq 0 ]]; then
+    show_home
+    exit 0
+fi
+
+case "$1" in
+    -h|--help)
+        usage
+        ;;
+    --version)
+        version
+        ;;
+    absence|cache|config|info|login|rozvrh|ukoly|znamky)
+        module="$1"
+        shift
+        exec bash "$SCRIPT_DIR/modules/$module.sh" "$@"
+        ;;
+    *)
+        printf 'Neznámý modul: %s\n\n' "$1" >&2
+        usage >&2
+        exit 2
+        ;;
+esac

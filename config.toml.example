@@ -1,0 +1,51 @@
+# Configuration for bakalari-cli.
+#
+# Copy this file to ~/.config/bakalari-cli/config.toml (or to the path
+# configured by BAKALARI_CONFIG) and fill in your own credentials.
+# This file is tracked only as an example; the real config is ignored.
+#
+# If ~/.bakalariclirc exists, it is used instead of the main config.
+# BAKALARI_CONFIG can explicitly override both locations.
+
+[general]
+# Active user profiles. Add user02, user03, ... as needed.
+user01 = "dzonny"
+# user02 = "johnny"
+
+# Optional local cache directory. Empty = ${XDG_CACHE_HOME:-$HOME/.cache}/bakalari-cli.
+# cache_dir = "/custom/path/bakalari-cli"
+
+# The section name must match the value of user01/user02/... above.
+[dzonny]
+host  = "zssumava.bakalari.cz"
+user  = "your_username"
+pass  = "your_password"
+# Number of timetable lessons to display.
+max_hours = 6
+# This will be filled and refreshed automatically after login.
+token = "your_token"
+name  = "your_name"
+class = "your_class"
+
+# [johnny]
+# host  = "another-school.bakalari.cz"
+# user  = "your_username"
+# pass  = "your_password"
+# max_hours = 6
+# token = ""
+# name = "your_name"
+# class = "your_class"
+
+
+[colors]
+# Optional ANSI 256-color palette for timetable subjects.
+# If a subject is missing here, rozvrh.sh uses its built-in default color.
+# Valid values are 0-255.
+"Hv"  = 135
+"M"   = 33
+"Čj"  = 34
+"Prv" = 172
+"Vv"  = 44
+"Pč"  = 160
+"Tv"  = 170
+
