@@ -99,7 +99,7 @@ color_text() {
 color_swatch() {
     local color="$1" marker="${2:- }" text_color
     text_color="$(color_text "$color")"
-    printf '%s\033[48;5;%sm%s%3d\033[0m' "$marker" "$color" "$text_color" "$color"
+    printf '%s\033[48;5;%sm%s[ %3d ]\033[0m' "$marker" "$color" "$text_color" "$color"
 }
 
 render_color_picker() {
